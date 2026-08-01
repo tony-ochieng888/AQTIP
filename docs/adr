@@ -1,0 +1,37 @@
+ADR-001-market-data-gateway.md:
+# ADR-001: Market Data Gateway
+
+## Status
+
+Accepted
+
+## Context
+
+AQTIP requires historical market data for:
+
+- Backtesting
+- Machine Learning
+- Strategy Development
+- Paper Trading
+- Live Trading
+
+Multiple modules depend on exchange data.
+
+## Decision
+
+Introduce a dedicated MarketDataDownloader that communicates with a BinanceClient.
+
+The rest of the application must never communicate directly with the Binance SDK.
+
+## Consequences
+
+Advantages:
+
+- Low coupling
+- Easier testing
+- Future exchange support
+- Cleaner architecture
+
+Trade-off:
+
+- Slightly more code initially, but significantly easier maintenance as the project grows.

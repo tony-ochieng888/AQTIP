@@ -7,11 +7,15 @@ application:
   version: 0.1.0
   environment: development
 
+exchange:
+  testnet: true
+
 market:
   exchange: binance
   symbol: BTCUSDT
   interval: 1h
   limit: 1000
+
 
 storage:
   data_directory: data
@@ -24,3 +28,4 @@ logging:
 backtest:
   initial_capital: 10000
   leverage: 10
+  
