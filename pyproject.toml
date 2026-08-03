@@ -1,79 +1,28 @@
-############################################################
-# AQTIP
-# Adaptive Quantitative Trading Intelligence Platform
-#
-# Central Development Configuration
-#
-# This file defines how the project is tested,
-# validated and measured.
-#
-# Philosophy:
-# Quality should be automated whenever possible.
-############################################################
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
 
+[project]
+name = "aqtip"
+version = "0.1.0"
+description = "Adaptive Quantitative Trading Intelligence Platform"
+readme = "README.md"
+requires-python = ">=3.12"
 
-############################################################
-# Pytest Configuration
-############################################################
-
-[tool.pytest.ini_options]
-
-minversion = "8.0"
-
-testpaths = [
-    "tests"
+authors = [
+    {name = "Tony Ochieng"}
 ]
 
-pythonpath = [
-    "src"
+dependencies = [
+    "python-binance",
+    "pandas",
+    "pyyaml",
+    "pyarrow"
 ]
 
-addopts = [
-    "-ra",
-    "--strict-markers",
-    "--tb=short"
-]
+[tool.setuptools]
+package-dir = {"" = "."}
 
-
-############################################################
-# Coverage Configuration
-############################################################
-
-[tool.coverage.run]
-
-source = [
-    "src"
-]
-
-branch = true
-
-omit = [
-    "*/__init__.py"
-]
-
-
-############################################################
-# Coverage Report
-############################################################
-
-[tool.coverage.report]
-
-show_missing = true
-
-skip_covered = false
-
-precision = 2
-
-
-############################################################
-# Future Configuration
-############################################################
-
-# Future chapters will configure:
-#
-# Ruff
-# Black
-# MyPy
-# Bandit
-# isort
-#
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
