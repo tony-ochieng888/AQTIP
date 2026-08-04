@@ -38,7 +38,8 @@ print(
             FeatureColumns.CLOSE,
             FeatureColumns.RETURNS,
             FeatureColumns.LOG_RETURNS,
-             FeatureColumns.SMA_20,
+            FeatureColumns.SMA_20,
+            FeatureColumns.EMA_20,
         ]
-    ].head(25)
+    ].head(30)
 )

@@ -8,21 +8,36 @@ class IndicatorLibrary:
     """
     Technical analysis indicators used by AQTIP.
     """
-
     @staticmethod
-    def add_sma_20(df: pd.DataFrame) -> pd.DataFrame:
+    def add_sma(df, period=20):
         """
-        Adds the 20-period Simple Moving Average.
+        Adds a Simple Moving Average (SMA)
+        for the specified period.
         """
-
-        logger.info("Generating SMA(20)...")
-
+        logger.info(f"Generating SMA({period})...")
         df = df.copy()
-
-        df[FeatureColumns.SMA_20] = (
+        column_name = f"sma_{period}"
+        df[column_name] = (
             df[FeatureColumns.CLOSE]
-            .rolling(window=20)
+            .rolling(window=period)
             .mean()
-        )
-
+            )
         return df
+
+    
+    @staticmethod
+    def add_ema(df, period=20):
+        """
+        Adds an Exponential Moving Average (EMA)
+        for the specified period.
+        """
+        logger.info(f"Generating EMA({period})...")
+        df = df.copy()
+        column_name = f"ema_{period}"
+        df[column_name] = (
+            df[FeatureColumns.CLOSE]
+            .ewm(span=period, adjust=False)
+            .mean()
+            )
+        return df
+    

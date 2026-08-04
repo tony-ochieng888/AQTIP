@@ -19,7 +19,8 @@ class FeaturePipeline:
         self.transforms = [
             FeatureTransforms.add_returns,
             FeatureTransforms.add_log_returns,
-            IndicatorLibrary.add_sma_20,
+            lambda df: IndicatorLibrary.add_sma(df, period=20),
+            lambda df: IndicatorLibrary.add_ema(df, period=20),
         ]
 
     def run(self, df: pd.DataFrame) -> pd.DataFrame:
