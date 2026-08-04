@@ -22,4 +22,4 @@ class FeatureColumns:
 
     EMA_20 = "ema_20"
 
-    RSI_14 = "rsi_14"
+    ATR_14 = "atr_14"

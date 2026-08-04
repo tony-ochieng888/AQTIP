@@ -40,6 +40,7 @@ print(
             FeatureColumns.LOG_RETURNS,
             FeatureColumns.SMA_20,
             FeatureColumns.EMA_20,
+            FeatureColumns.ATR_14,
         ]
     ].head(30)
 )

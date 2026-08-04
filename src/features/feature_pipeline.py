@@ -21,6 +21,7 @@ class FeaturePipeline:
             FeatureTransforms.add_log_returns,
             lambda df: IndicatorLibrary.add_sma(df, period=20),
             lambda df: IndicatorLibrary.add_ema(df, period=20),
+            lambda df: IndicatorLibrary.add_atr(df, period=14),
         ]
 
     def run(self, df: pd.DataFrame) -> pd.DataFrame:
