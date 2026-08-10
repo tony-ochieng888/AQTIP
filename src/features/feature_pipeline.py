@@ -1,6 +1,8 @@
 import pandas as pd
 
 from src.features.indicators import IndicatorLibrary
+from src.features.volatility import VolatilityIndicators
+
 from src.features.transforms import FeatureTransforms
 from src.utils.logger import logger
 
@@ -19,9 +21,8 @@ class FeaturePipeline:
         self.transforms = [
             FeatureTransforms.add_returns,
             FeatureTransforms.add_log_returns,
-            lambda df: IndicatorLibrary.add_sma(df, period=20),
-            lambda df: IndicatorLibrary.add_ema(df, period=20),
-            lambda df: IndicatorLibrary.add_atr(df, period=14),
+            lambda df: VolatilityIndicators.add_atr(df, period=14),
+            lambda df: IndicatorLibrary.add_kijun_sen(df, period=26),
         ]
 
     def run(self, df: pd.DataFrame) -> pd.DataFrame:

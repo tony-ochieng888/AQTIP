@@ -18,8 +18,6 @@ class FeatureColumns:
 
     LOG_RETURNS = "log_returns"
 
-    SMA_20 = "sma_20"
-
-    EMA_20 = "ema_20"
-
     ATR_14 = "atr_14"
+
+    KIJUN_26 = "kijun_26"
