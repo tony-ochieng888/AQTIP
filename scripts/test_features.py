@@ -26,6 +26,11 @@ df = store.save(validated)
 
 # Generate Features
 pipeline = FeaturePipeline()
+
+print("\nRegistered Indicators:")
+print(pipeline.registry.names())
+
+
 df = pipeline.run(df)
 
 # ------------------------------------------------------------
