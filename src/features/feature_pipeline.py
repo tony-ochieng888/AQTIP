@@ -33,6 +33,7 @@ class FeaturePipeline:
 
         self.registry.register(
             name="ATR(14)",
+            role = "volatility",
             function=lambda df: IndicatorLibrary.add_atr(
                 df,
                 period=14,
@@ -41,6 +42,7 @@ class FeaturePipeline:
 
         self.registry.register(
             name="Kijun Sen(26)",
+            role="baseline",
             function=lambda df: IndicatorLibrary.add_kijun_sen(
                 df,
                 period=26,
