@@ -1,5 +1,6 @@
 import pandas as pd
 
+from src.features.indicator_config import IndicatorConfig
 from src.features.indicators import IndicatorLibrary
 from src.features.registry import IndicatorRegistry
 from src.features.transforms import FeatureTransforms
@@ -28,26 +29,48 @@ class FeaturePipeline:
 
     def _register_indicators(self):
         """
-        Register AQTIP indicators with the central registry.
+        Register AQTIP indicators from configuration.
         """
 
-        self.registry.register(
-            name="ATR(14)",
-            role = "volatility",
-            function=lambda df: IndicatorLibrary.add_atr(
-                df,
+        indicator_configs = [
+            IndicatorConfig(
+                name="ATR(14)",
+                role="volatility",
                 period=14,
             ),
-        )
-
-        self.registry.register(
-            name="Kijun Sen(26)",
-            role="baseline",
-            function=lambda df: IndicatorLibrary.add_kijun_sen(
-                df,
+            IndicatorConfig(
+                name="Kijun Sen(26)",
+                role="baseline",
                 period=26,
             ),
-        )
+        ]
+
+        for config in indicator_configs:
+
+            if not config.enabled:
+                continue
+
+            if config.name.startswith("ATR"):
+                self.registry.register(
+                    name=config.name,
+                    role=config.role,
+                    function=lambda df, period=config.period:
+                        IndicatorLibrary.add_atr(
+                            df,
+                            period=period,
+                        ),
+                )
+
+            elif config.name.startswith("Kijun Sen"):
+                self.registry.register(
+                    name=config.name,
+                    role=config.role,
+                    function=lambda df, period=config.period:
+                        IndicatorLibrary.add_kijun_sen(
+                            df,
+                            period=period,
+                        ),
+                )
 
     def run(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -56,11 +79,9 @@ class FeaturePipeline:
 
         logger.info("Starting feature engineering pipeline...")
 
-        # Apply basic feature transformations
         for transform in self.transforms:
             df = transform(df)
 
-        # Apply registered indicators
         df = self.registry.apply(df)
 
         logger.info("Feature pipeline completed.")
