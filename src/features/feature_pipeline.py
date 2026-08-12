@@ -1,7 +1,7 @@
 import pandas as pd
 
 from src.features.indicator_config import IndicatorConfig
-from src.features.indicators import IndicatorLibrary
+from src.features.indicator_factory import IndicatorFactory
 from src.features.registry import IndicatorRegistry
 from src.features.transforms import FeatureTransforms
 from src.utils.logger import logger
@@ -50,27 +50,16 @@ class FeaturePipeline:
             if not config.enabled:
                 continue
 
-            if config.name.startswith("ATR"):
-                self.registry.register(
-                    name=config.name,
-                    role=config.role,
-                    function=lambda df, period=config.period:
-                        IndicatorLibrary.add_atr(
-                            df,
-                            period=period,
-                        ),
-                )
+            indicator_function = IndicatorFactory.create(
+                name=config.name,
+                period=config.period,
+            )
 
-            elif config.name.startswith("Kijun Sen"):
-                self.registry.register(
-                    name=config.name,
-                    role=config.role,
-                    function=lambda df, period=config.period:
-                        IndicatorLibrary.add_kijun_sen(
-                            df,
-                            period=period,
-                        ),
-                )
+            self.registry.register(
+                name=config.name,
+                role=config.role,
+                function=indicator_function,
+            )
 
     def run(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -79,9 +68,11 @@ class FeaturePipeline:
 
         logger.info("Starting feature engineering pipeline...")
 
+        # Apply basic feature transformations
         for transform in self.transforms:
             df = transform(df)
 
+        # Apply registered indicators
         df = self.registry.apply(df)
 
         logger.info("Feature pipeline completed.")
