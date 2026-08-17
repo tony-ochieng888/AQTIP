@@ -1,6 +1,5 @@
 import pandas as pd
 
-from src.features.feature_contract import FeatureContract
 from src.features.indicator_config import IndicatorConfig
 from src.features.indicator_factory import IndicatorFactory
 from src.features.registry import IndicatorRegistry
@@ -14,7 +13,8 @@ class FeaturePipeline:
 
     Responsible for:
     - Generating base return features.
-    - Registering configured indicators.
+    - Creating configured indicator definitions.
+    - Registering indicator definitions.
     - Executing registered indicators.
     """
 
@@ -40,43 +40,26 @@ class FeaturePipeline:
 
     def _register_indicators(self) -> None:
         """
-        Register all enabled indicators with their feature contracts.
+        Create and register all enabled indicators.
+
+        Indicator-specific execution contracts are supplied by
+        IndicatorFactory rather than being defined here.
         """
 
         for config in self.indicator_configs:
             if not config.enabled:
                 continue
 
-            indicator_function = IndicatorFactory.create(
+            definition = IndicatorFactory.create(
                 name=config.name,
                 period=config.period,
             )
 
-            if config.name.startswith("ATR"):
-                contract = FeatureContract(
-                    output_column="atr_14",
-                    required_columns=("high", "low", "close"),
-                    warmup_period=config.period,
-                )
-
-            elif config.name.startswith("Kijun Sen"):
-                contract = FeatureContract(
-                    output_column="kijun_26",
-                    required_columns=("high", "low"),
-                    warmup_period=config.period,
-                )
-
-            else:
-                raise ValueError(
-                    f"No feature contract defined for indicator: "
-                    f"{config.name}"
-                )
-
             self.registry.register(
                 name=config.name,
                 role=config.role,
-                function=indicator_function,
-                contract=contract,
+                function=definition.function,
+                contract=definition.contract,
             )
 
     def run(self, df: pd.DataFrame) -> pd.DataFrame:
