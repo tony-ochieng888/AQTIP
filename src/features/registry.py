@@ -13,6 +13,7 @@ class IndicatorDefinition:
     name: str
     role: str
     function: Callable[[pd.DataFrame], pd.DataFrame]
+    output_column: str
 
 
 class IndicatorRegistry:
@@ -28,11 +29,35 @@ class IndicatorRegistry:
         name: str,
         role: str,
         function: Callable[[pd.DataFrame], pd.DataFrame],
+        output_column: str,
     ) -> None:
         """
-        Register an indicator with AQTIP.
+        Register an indicator.
         """
 
+        # Validate metadata
+        if not name.strip():
+            raise ValueError(
+                "Indicator name cannot be empty."
+            )
+
+        if not role.strip():
+            raise ValueError(
+                "Indicator role cannot be empty."
+            )
+
+        if not output_column.strip():
+            raise ValueError(
+                "Indicator output column cannot be empty."
+            )
+
+        # Validate callable
+        if not callable(function):
+            raise TypeError(
+                f"Function for '{name}' must be callable."
+            )
+
+        # Prevent duplicate indicator names
         if any(
             indicator.name == name
             for indicator in self._indicators
@@ -41,9 +66,14 @@ class IndicatorRegistry:
                 f"Indicator '{name}' is already registered."
             )
 
-        if not callable(function):
-            raise TypeError(
-                f"Function for '{name}' must be callable."
+        # Prevent duplicate output columns
+        if any(
+            indicator.output_column == output_column
+            for indicator in self._indicators
+        ):
+            raise ValueError(
+                f"Output column '{output_column}' "
+                "is already registered."
             )
 
         self._indicators.append(
@@ -51,6 +81,7 @@ class IndicatorRegistry:
                 name=name,
                 role=role,
                 function=function,
+                output_column=output_column,
             )
         )
 
@@ -84,6 +115,16 @@ class IndicatorRegistry:
 
         return [
             indicator.role
+            for indicator in self._indicators
+        ]
+
+    def output_columns(self) -> list[str]:
+        """
+        Return output columns of all registered indicators.
+        """
+
+        return [
+            indicator.output_column
             for indicator in self._indicators
         ]
 

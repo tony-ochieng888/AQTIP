@@ -55,10 +55,17 @@ class FeaturePipeline:
                 period=config.period,
             )
 
+            output_column = (
+                "atr_14"
+                if config.name.startswith("ATR")
+                else "kijun_26"
+                )
+
             self.registry.register(
                 name=config.name,
                 role=config.role,
                 function=indicator_function,
+                output_column=output_column,
             )
 
     def run(self, df: pd.DataFrame) -> pd.DataFrame:
