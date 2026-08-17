@@ -1,5 +1,6 @@
 import pandas as pd
 
+from src.features.feature_contract import FeatureContract
 from src.features.indicator_config import IndicatorConfig
 from src.features.indicator_factory import IndicatorFactory
 from src.features.registry import IndicatorRegistry
@@ -9,44 +10,40 @@ from src.utils.logger import logger
 
 class FeaturePipeline:
     """
-    Coordinates all feature generation for AQTIP.
+    AQTIP feature engineering pipeline.
+
+    Responsible for:
+    - Generating base return features.
+    - Registering configured indicators.
+    - Executing registered indicators.
     """
 
     def __init__(self):
-        """
-        Build the feature pipeline and register
-        all indicators used by AQTIP.
-        """
-
         self.registry = IndicatorRegistry()
 
-        self.transforms = [
-            FeatureTransforms.add_returns,
-            FeatureTransforms.add_log_returns,
-        ]
-
-        self._register_indicators()
-
-    def _register_indicators(self):
-        """
-        Register AQTIP indicators from configuration.
-        """
-
-        indicator_configs = [
+        self.indicator_configs = [
             IndicatorConfig(
                 name="ATR(14)",
                 role="volatility",
                 period=14,
+                enabled=True,
             ),
             IndicatorConfig(
                 name="Kijun Sen(26)",
                 role="baseline",
                 period=26,
+                enabled=True,
             ),
         ]
 
-        for config in indicator_configs:
+        self._register_indicators()
 
+    def _register_indicators(self) -> None:
+        """
+        Register all enabled indicators with their feature contracts.
+        """
+
+        for config in self.indicator_configs:
             if not config.enabled:
                 continue
 
@@ -55,32 +52,53 @@ class FeaturePipeline:
                 period=config.period,
             )
 
-            output_column = (
-                "atr_14"
-                if config.name.startswith("ATR")
-                else "kijun_26"
+            if config.name.startswith("ATR"):
+                contract = FeatureContract(
+                    output_column="atr_14",
+                    required_columns=("high", "low", "close"),
+                    warmup_period=config.period,
+                )
+
+            elif config.name.startswith("Kijun Sen"):
+                contract = FeatureContract(
+                    output_column="kijun_26",
+                    required_columns=("high", "low"),
+                    warmup_period=config.period,
+                )
+
+            else:
+                raise ValueError(
+                    f"No feature contract defined for indicator: "
+                    f"{config.name}"
                 )
 
             self.registry.register(
                 name=config.name,
                 role=config.role,
                 function=indicator_function,
-                output_column=output_column,
+                contract=contract,
             )
 
     def run(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Execute all feature transformations and indicators.
+        Execute the complete feature engineering pipeline.
         """
 
         logger.info("Starting feature engineering pipeline...")
 
-        # Apply basic feature transformations
-        for transform in self.transforms:
-            df = transform(df)
+        logger.info("Generating returns feature...")
+        df = FeatureTransforms.add_returns(df)
 
-        # Apply registered indicators
-        df = self.registry.apply(df)
+        logger.info("Generating log returns feature...")
+        df = FeatureTransforms.add_log_returns(df)
+
+        for definition in self.registry.definitions():
+            logger.info(
+                "Generating %s...",
+                definition.name,
+            )
+
+            df = definition.function(df)
 
         logger.info("Feature pipeline completed.")
 

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 import pandas as pd
+from src.features.feature_contract import FeatureContract
 
 
 @dataclass(frozen=True)
@@ -13,7 +14,7 @@ class IndicatorDefinition:
     name: str
     role: str
     function: Callable[[pd.DataFrame], pd.DataFrame]
-    output_column: str
+    contract: FeatureContract
 
 
 class IndicatorRegistry:
@@ -29,7 +30,7 @@ class IndicatorRegistry:
         name: str,
         role: str,
         function: Callable[[pd.DataFrame], pd.DataFrame],
-        output_column: str,
+        contract: FeatureContract,
     ) -> None:
         """
         Register an indicator.
@@ -46,10 +47,10 @@ class IndicatorRegistry:
                 "Indicator role cannot be empty."
             )
 
-        if not output_column.strip():
+        if not contract.output_column.strip():
             raise ValueError(
                 "Indicator output column cannot be empty."
-            )
+                )
 
         # Validate callable
         if not callable(function):
@@ -68,20 +69,21 @@ class IndicatorRegistry:
 
         # Prevent duplicate output columns
         if any(
-            indicator.output_column == output_column
+            indicator.contract.output_column
+            == contract.output_column
             for indicator in self._indicators
-        ):
+            ):
             raise ValueError(
-                f"Output column '{output_column}' "
+                f"Output column '{contract.output_column}' "
                 "is already registered."
-            )
+                )
 
         self._indicators.append(
             IndicatorDefinition(
                 name=name,
                 role=role,
                 function=function,
-                output_column=output_column,
+                contract = contract,
             )
         )
 
@@ -124,9 +126,9 @@ class IndicatorRegistry:
         """
 
         return [
-            indicator.output_column
+            indicator.contract.output_column
             for indicator in self._indicators
-        ]
+            ]
 
     def definitions(self) -> list[IndicatorDefinition]:
         """
