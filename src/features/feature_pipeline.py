@@ -15,10 +15,11 @@ class FeaturePipeline:
     - Generating base return features.
     - Creating configured indicator definitions.
     - Registering indicator definitions.
-    - Executing registered indicators.
+    - Executing registered indicators through the
+      IndicatorRegistry runtime contract gate.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.registry = IndicatorRegistry()
 
         self.indicator_configs = [
@@ -65,6 +66,10 @@ class FeaturePipeline:
     def run(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Execute the complete feature engineering pipeline.
+
+        Base features are generated first. All registered indicators
+        are then executed through IndicatorRegistry.apply(), which
+        serves as the runtime contract enforcement gate.
         """
 
         logger.info("Starting feature engineering pipeline...")
@@ -75,13 +80,10 @@ class FeaturePipeline:
         logger.info("Generating log returns feature...")
         df = FeatureTransforms.add_log_returns(df)
 
-        for definition in self.registry.definitions():
-            logger.info(
-                "Generating %s...",
-                definition.name,
-            )
-
-            df = definition.function(df)
+        logger.info(
+            "Executing registered indicators through runtime contracts..."
+        )
+        df = self.registry.apply(df)
 
         logger.info("Feature pipeline completed.")
 
