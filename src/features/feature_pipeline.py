@@ -1,5 +1,6 @@
 import pandas as pd
 
+from src.features.feature_runtime import FeatureRuntime
 from src.features.indicator_config import IndicatorConfig
 from src.features.indicator_factory import IndicatorFactory
 from src.features.registry import IndicatorRegistry
@@ -11,12 +12,14 @@ class FeaturePipeline:
     """
     AQTIP feature engineering pipeline.
 
-    Responsible for:
-    - Generating base return features.
-    - Creating configured indicator definitions.
-    - Registering indicator definitions.
-    - Executing registered indicators through the
-      IndicatorRegistry runtime contract gate.
+    Architectural responsibility:
+
+    1. Generate configured base transforms.
+    2. Resolve configured indicators through IndicatorFactory.
+    3. Register indicator definitions with IndicatorRegistry.
+    4. Execute every feature through FeatureRuntime.
+
+    The pipeline does not implement feature-specific contract logic.
     """
 
     def __init__(self) -> None:
@@ -40,12 +43,7 @@ class FeaturePipeline:
         self._register_indicators()
 
     def _register_indicators(self) -> None:
-        """
-        Create and register all enabled indicators.
-
-        Indicator-specific execution contracts are supplied by
-        IndicatorFactory rather than being defined here.
-        """
+        """Create and register every enabled indicator."""
 
         for config in self.indicator_configs:
             if not config.enabled:
@@ -65,26 +63,58 @@ class FeaturePipeline:
 
     def run(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Execute the complete feature engineering pipeline.
+        Execute the complete AQTIP feature pipeline.
 
-        Base features are generated first. All registered indicators
-        are then executed through IndicatorRegistry.apply(), which
-        serves as the runtime contract enforcement gate.
+        Base transforms execute first.
+
+        Registered indicators execute afterwards.
+
+        Every feature-producing operation passes through the same
+        FeatureRuntime contract-enforcement boundary.
         """
 
-        logger.info("Starting feature engineering pipeline...")
-
-        logger.info("Generating returns feature...")
-        df = FeatureTransforms.add_returns(df)
-
-        logger.info("Generating log returns feature...")
-        df = FeatureTransforms.add_log_returns(df)
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError(
+                "FeaturePipeline.run() requires a pandas DataFrame."
+            )
 
         logger.info(
-            "Executing registered indicators through runtime contracts..."
+            "Starting feature engineering pipeline..."
         )
-        df = self.registry.apply(df)
 
-        logger.info("Feature pipeline completed.")
+        result = df.copy(deep=True)
 
-        return df
+        # ----------------------------------------------------------
+        # Base feature transforms
+        # ----------------------------------------------------------
+
+        for transform in FeatureTransforms.definitions():
+            logger.info(
+                "Executing base feature '%s' through runtime "
+                "contract enforcement...",
+                transform.name,
+            )
+
+            result = FeatureRuntime.execute(
+                df=result,
+                function=transform.function,
+                contract=transform.contract,
+                name=transform.name,
+            )
+
+        # ----------------------------------------------------------
+        # Registered indicators
+        # ----------------------------------------------------------
+
+        logger.info(
+            "Executing registered indicators through runtime "
+            "contracts..."
+        )
+
+        result = self.registry.apply(result)
+
+        logger.info(
+            "Feature pipeline completed."
+        )
+
+        return result

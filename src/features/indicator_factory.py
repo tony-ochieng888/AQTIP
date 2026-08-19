@@ -13,8 +13,9 @@ class IndicatorDefinition:
     Complete executable definition of an AQTIP indicator.
 
     Combines:
+
     - The executable indicator function.
-    - The feature contract describing its output requirements.
+    - The immutable FeatureContract governing execution.
     """
 
     function: Callable[[pd.DataFrame], pd.DataFrame]
@@ -23,15 +24,15 @@ class IndicatorDefinition:
 
 class IndicatorFactory:
     """
-    Creates complete indicator definitions for AQTIP.
+    Creates complete, contract-bound indicator definitions.
 
-    The factory owns indicator-specific execution metadata,
-    including:
+    The factory is responsible for translating an indicator identity
+    and period into:
 
-    - Output column.
-    - Required input columns.
-    - Warm-up period.
-    - Executable indicator function.
+        indicator function + complete FeatureContract
+
+    Indicator-specific execution metadata belongs here rather than
+    being duplicated by downstream components.
     """
 
     @staticmethod
@@ -40,7 +41,7 @@ class IndicatorFactory:
         period: int,
     ) -> IndicatorDefinition:
         """
-        Create an indicator definition from its name and period.
+        Create an executable indicator definition.
 
         Parameters
         ----------
@@ -48,18 +49,42 @@ class IndicatorFactory:
             Human-readable indicator name.
 
         period:
-            Lookback period used by the indicator.
+            Positive integer lookback period.
 
         Returns
         -------
         IndicatorDefinition
-            Executable indicator function plus its feature contract.
+            Executable function together with its complete contract.
 
         Raises
         ------
+        TypeError
+            If name or period has an invalid type.
+
         ValueError
-            If the indicator is not supported.
+            If the period is invalid or the indicator is unsupported.
         """
+
+        if not isinstance(name, str):
+            raise TypeError(
+                "Indicator name must be a string."
+            )
+
+        if not name.strip():
+            raise ValueError(
+                "Indicator name cannot be empty."
+            )
+
+        if not isinstance(period, int):
+            raise TypeError(
+                "Indicator period must be an integer."
+            )
+
+        if isinstance(period, bool):
+            raise TypeError(
+                "Indicator period must be an integer, "
+                "not boolean."
+            )
 
         if period <= 0:
             raise ValueError(
@@ -74,7 +99,11 @@ class IndicatorFactory:
 
             contract = FeatureContract(
                 output_column=f"atr_{period}",
-                required_columns=("high", "low", "close"),
+                required_columns=(
+                    "high",
+                    "low",
+                    "close",
+                ),
                 warmup_period=period,
                 causal=True,
             )
@@ -92,7 +121,10 @@ class IndicatorFactory:
 
             contract = FeatureContract(
                 output_column=f"kijun_{period}",
-                required_columns=("high", "low"),
+                required_columns=(
+                    "high",
+                    "low",
+                ),
                 warmup_period=period,
                 causal=True,
             )

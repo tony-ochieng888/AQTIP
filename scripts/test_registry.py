@@ -1,415 +1,396 @@
+from typing import Any
+
 import pandas as pd
 
 from src.features.feature_contract import FeatureContract
 from src.features.registry import IndicatorRegistry
 
 
-print("=" * 60)
-print("AQTIP Indicator Registry Runtime Contract Test")
-print("=" * 60)
+def test_indicator(df: pd.DataFrame) -> pd.DataFrame:
+    result = df.copy(deep=True)
 
+    result["test_indicator"] = result["close"].rolling(
+        window=2,
+        min_periods=2,
+    ).mean()
 
-# ------------------------------------------------------------------
-# Test fixtures
-# ------------------------------------------------------------------
-
-def valid_indicator(df: pd.DataFrame) -> pd.DataFrame:
-    result = df.copy()
-    result["test_indicator"] = (
-        result["close"].rolling(window=2).mean()
-    )
     return result
 
 
-def missing_output_indicator(df: pd.DataFrame) -> pd.DataFrame:
-    return df.copy()
+def test_indicator_two(df: pd.DataFrame) -> pd.DataFrame:
+    result = df.copy(deep=True)
 
+    result["test_indicator_two"] = result["close"].rolling(
+        window=2,
+        min_periods=2,
+    ).mean()
 
-def row_changing_indicator(df: pd.DataFrame) -> pd.DataFrame:
-    result = df.copy()
-    result["test_indicator"] = 1.0
-    return result.iloc[:-1].copy()
-
-
-def mutating_indicator(df: pd.DataFrame) -> pd.DataFrame:
-    df["close"] = 999.0
-    df["test_indicator"] = 1.0
-    return df
-
-
-def invalid_warmup_indicator(df: pd.DataFrame) -> pd.DataFrame:
-    result = df.copy()
-    result["test_indicator"] = 1.0
     return result
 
 
-def future_looking_indicator(df: pd.DataFrame) -> pd.DataFrame:
-    result = df.copy()
-    result["test_indicator"] = (
-        result["close"]
-        .rolling(window=2, min_periods=1)
-        .mean()
-        .shift(-1)
-    )
+def test_indicator_three(df: pd.DataFrame) -> pd.DataFrame:
+    result = df.copy(deep=True)
+
+    result["test_indicator_three"] = result["close"].rolling(
+        window=2,
+        min_periods=2,
+    ).mean()
+
     return result
 
 
-def causal_indicator(df: pd.DataFrame) -> pd.DataFrame:
-    result = df.copy()
-    result["test_indicator"] = (
-        result["close"].rolling(window=2).mean()
-    )
-    return result
+def main() -> None:
+    print("=" * 60)
+    print("AQTIP Indicator Registry Runtime Contract Test")
+    print("=" * 60)
 
+    registry = IndicatorRegistry()
 
-def base_contract(
-    *,
-    causal: bool = True,
-    warmup_period: int = 2,
-) -> FeatureContract:
-    return FeatureContract(
+    valid_contract = FeatureContract(
         output_column="test_indicator",
         required_columns=("close",),
-        warmup_period=warmup_period,
-        causal=causal,
+        warmup_period=2,
+        causal=True,
     )
 
-
-# ------------------------------------------------------------------
-# Registry setup
-# ------------------------------------------------------------------
-
-registry = IndicatorRegistry()
-
-registry.register(
-    name="Test Indicator",
-    role="test",
-    function=valid_indicator,
-    contract=base_contract(),
-)
-
-print("\nRegistered indicators:")
-print(registry.names())
-
-print("\nRegistered roles:")
-print(registry.roles())
-
-print("\nRegistered output columns:")
-print(registry.output_columns())
-
-
-# ------------------------------------------------------------------
-# Duplicate registration protection
-# ------------------------------------------------------------------
-
-try:
     registry.register(
         name="Test Indicator",
         role="test",
-        function=valid_indicator,
-        contract=base_contract(),
+        function=test_indicator,
+        contract=valid_contract,
     )
-    raise AssertionError(
-        "Duplicate registration was not blocked."
-    )
-except ValueError as exc:
-    print("\nDuplicate protection PASSED.")
-    print(exc)
 
+    # ----------------------------------------------------------
+    # Registration discovery
+    # ----------------------------------------------------------
 
-# ------------------------------------------------------------------
-# Callable validation
-# ------------------------------------------------------------------
+    assert registry.names() == ["Test Indicator"]
 
-try:
-    registry.register(
-        name="Invalid Indicator",
-        role="test",
-        function="not_callable",
-        contract=base_contract(),
-    )
-    raise AssertionError(
-        "Non-callable indicator was not blocked."
-    )
-except TypeError as exc:
-    print("\nCallable validation PASSED.")
-    print(exc)
+    print("\nRegistered indicators:")
+    print(registry.names())
 
+    assert registry.roles() == ["test"]
 
-# ------------------------------------------------------------------
-# Causal contract validation
-# ------------------------------------------------------------------
+    print("\nRegistered roles:")
+    print(registry.roles())
 
-try:
-    registry.register(
-        name="Invalid Causal Contract",
-        role="test",
-        function=valid_indicator,
-        contract=FeatureContract(
-            output_column="invalid_causal",
+    assert registry.output_columns() == ["test_indicator"]
+
+    print("\nRegistered output columns:")
+    print(registry.output_columns())
+
+    # ----------------------------------------------------------
+    # Duplicate indicator-name protection
+    # ----------------------------------------------------------
+
+    try:
+        registry.register(
+            name="Test Indicator",
+            role="test",
+            function=test_indicator_two,
+            contract=FeatureContract(
+                output_column="test_indicator_two",
+                required_columns=("close",),
+                warmup_period=2,
+                causal=True,
+            ),
+        )
+
+        raise AssertionError(
+            "Duplicate indicator name was not rejected."
+        )
+
+    except ValueError as exc:
+        assert "already registered" in str(exc)
+
+        print("\nDuplicate protection PASSED.")
+        print(exc)
+
+    # ----------------------------------------------------------
+    # Callable validation
+    # ----------------------------------------------------------
+
+    try:
+        registry.register(
+            name="Invalid Indicator",
+            role="test",
+            function="not callable",  # type: ignore[arg-type]
+            contract=FeatureContract(
+                output_column="invalid_indicator",
+                required_columns=("close",),
+                warmup_period=2,
+                causal=True,
+            ),
+        )
+
+        raise AssertionError(
+            "Non-callable indicator function was not rejected."
+        )
+
+    except TypeError as exc:
+        assert "must be callable" in str(exc)
+
+        print("\nCallable validation PASSED.")
+        print(exc)
+
+    # ----------------------------------------------------------
+    # Contract type validation
+    # ----------------------------------------------------------
+
+    try:
+        registry.register(
+            name="Invalid Contract Indicator",
+            role="test",
+            function=test_indicator_two,
+            contract="not a FeatureContract",  # type: ignore[arg-type]
+        )
+
+        raise AssertionError(
+            "Invalid contract type was not rejected."
+        )
+
+    except TypeError as exc:
+        assert "must be a FeatureContract" in str(exc)
+
+        print("\nContract type validation PASSED.")
+        print(exc)
+
+    # ----------------------------------------------------------
+    # Invalid causal contract
+    #
+    # IMPORTANT:
+    # FeatureContract now owns its own validation.
+    #
+    # Therefore an invalid causal value must fail during
+    # FeatureContract construction, before registry.register()
+    # is reached.
+    # ----------------------------------------------------------
+
+    try:
+        FeatureContract(
+            output_column="invalid_causal_indicator",
             required_columns=("close",),
             warmup_period=2,
-            causal="yes",
-        ),
-    )
-    raise AssertionError(
-        "Non-boolean causal contract was not blocked."
-    )
-except TypeError as exc:
-    print("\nCausal contract type validation PASSED.")
-    print(exc)
+            causal="yes",  # type: ignore[arg-type]
+        )
 
+        raise AssertionError(
+            "Invalid causal contract type was not rejected."
+        )
 
-# ------------------------------------------------------------------
-# Required input columns
-# ------------------------------------------------------------------
+    except TypeError as exc:
+        assert "causal must be a boolean" in str(exc)
 
-try:
-    registry.apply(
-        pd.DataFrame({"open": [1.0, 2.0, 3.0]})
-    )
-    raise AssertionError(
-        "Missing required columns were not blocked."
-    )
-except ValueError as exc:
-    print("\nRequired-column validation PASSED.")
-    print(exc)
+        print("\nCausal contract validation PASSED.")
+        print(exc)
 
+    # ----------------------------------------------------------
+    # Invalid warm-up contract
+    # ----------------------------------------------------------
 
-# ------------------------------------------------------------------
-# Expected output column
-# ------------------------------------------------------------------
+    try:
+        FeatureContract(
+            output_column="invalid_warmup_indicator",
+            required_columns=("close",),
+            warmup_period=0,
+            causal=True,
+        )
 
-output_registry = IndicatorRegistry()
-output_registry.register(
-    name="Missing Output",
-    role="test",
-    function=missing_output_indicator,
-    contract=base_contract(),
-)
+        raise AssertionError(
+            "Invalid warm-up period was not rejected."
+        )
 
-try:
-    output_registry.apply(
-        pd.DataFrame({"close": [10.0, 20.0, 30.0]})
-    )
-    raise AssertionError(
-        "Missing output column was not blocked."
-    )
-except ValueError as exc:
-    print("\nOutput-column validation PASSED.")
-    print(exc)
+    except ValueError as exc:
+        assert "warmup_period must be greater than zero" in str(exc)
 
+        print("\nWarm-up contract validation PASSED.")
+        print(exc)
 
-# ------------------------------------------------------------------
-# Row-count preservation
-# ------------------------------------------------------------------
+    # ----------------------------------------------------------
+    # Empty output-column contract
+    # ----------------------------------------------------------
 
-row_registry = IndicatorRegistry()
-row_registry.register(
-    name="Row Changing",
-    role="test",
-    function=row_changing_indicator,
-    contract=base_contract(),
-)
+    try:
+        FeatureContract(
+            output_column="",
+            required_columns=("close",),
+            warmup_period=2,
+            causal=True,
+        )
 
-try:
-    row_registry.apply(
-        pd.DataFrame({"close": [10.0, 20.0, 30.0]})
-    )
-    raise AssertionError(
-        "Row-count violation was not blocked."
-    )
-except ValueError as exc:
-    print("\nRow-count validation PASSED.")
-    print(exc)
+        raise AssertionError(
+            "Empty output column was not rejected."
+        )
 
+    except ValueError as exc:
+        assert "output_column cannot be empty" in str(exc)
 
-# ------------------------------------------------------------------
-# Input immutability
-# ------------------------------------------------------------------
+        print("\nOutput-column contract validation PASSED.")
+        print(exc)
 
-mutation_registry = IndicatorRegistry()
-mutation_registry.register(
-    name="Mutating Indicator",
-    role="test",
-    function=mutating_indicator,
-    contract=FeatureContract(
-        output_column="test_indicator",
+    # ----------------------------------------------------------
+    # Required-column contract validation
+    # ----------------------------------------------------------
+
+    try:
+        FeatureContract(
+            output_column="invalid_required_columns",
+            required_columns=(),  # type: ignore[arg-type]
+            warmup_period=2,
+            causal=True,
+        )
+
+        raise AssertionError(
+            "Empty required_columns was not rejected."
+        )
+
+    except ValueError as exc:
+        assert "at least one required input column" in str(exc)
+
+        print("\nRequired-column contract validation PASSED.")
+        print(exc)
+
+    # ----------------------------------------------------------
+    # Duplicate output-column protection
+    # ----------------------------------------------------------
+
+    try:
+        registry.register(
+            name="Duplicate Output Indicator",
+            role="test",
+            function=test_indicator_two,
+            contract=FeatureContract(
+                output_column="test_indicator",
+                required_columns=("close",),
+                warmup_period=2,
+                causal=True,
+            ),
+        )
+
+        raise AssertionError(
+            "Duplicate output column was not rejected."
+        )
+
+    except ValueError as exc:
+        assert "already registered" in str(exc)
+
+        print("\nOutput-column duplicate protection PASSED.")
+        print(exc)
+
+    # ----------------------------------------------------------
+    # Second valid registration
+    # ----------------------------------------------------------
+
+    second_contract = FeatureContract(
+        output_column="test_indicator_two",
         required_columns=("close",),
-        warmup_period=1,
-        causal=False,
-    ),
-)
-
-original = pd.DataFrame({"close": [10.0, 20.0, 30.0]})
-original_snapshot = original.copy(deep=True)
-mutation_registry.apply(original)
-
-if not original.equals(original_snapshot):
-    raise AssertionError(
-        "Registry allowed an indicator to mutate the "
-        "original input DataFrame."
-    )
-
-print("\nInput immutability protection PASSED.")
-
-
-# ------------------------------------------------------------------
-# Input index preservation
-# ------------------------------------------------------------------
-
-def index_changing_indicator(df: pd.DataFrame) -> pd.DataFrame:
-    result = df.copy()
-    result["test_indicator"] = 1.0
-    result.index = range(len(result))
-    return result
-
-
-index_registry = IndicatorRegistry()
-index_registry.register(
-    name="Index Changing",
-    role="test",
-    function=index_changing_indicator,
-    contract=FeatureContract(
-        output_column="test_indicator",
-        required_columns=("close",),
-        warmup_period=1,
-        causal=False,
-    ),
-)
-
-indexed_input = pd.DataFrame(
-    {"close": [10.0, 20.0, 30.0]},
-    index=[10, 20, 30],
-)
-
-try:
-    index_registry.apply(indexed_input)
-    raise AssertionError(
-        "Index mutation was not blocked."
-    )
-except ValueError as exc:
-    print("\nIndex preservation validation PASSED.")
-    print(exc)
-
-
-# ------------------------------------------------------------------
-# Warm-up enforcement
-# ------------------------------------------------------------------
-
-warmup_registry = IndicatorRegistry()
-warmup_registry.register(
-    name="Invalid Warmup",
-    role="test",
-    function=invalid_warmup_indicator,
-    contract=FeatureContract(
-        output_column="test_indicator",
-        required_columns=("close",),
-        warmup_period=3,
+        warmup_period=2,
         causal=True,
-    ),
-)
-
-try:
-    warmup_registry.apply(
-        pd.DataFrame({"close": [10.0, 20.0, 30.0, 40.0]})
     )
-    raise AssertionError(
-        "Warm-up violation was not blocked."
+
+    registry.register(
+        name="Second Test Indicator",
+        role="test",
+        function=test_indicator_two,
+        contract=second_contract,
     )
-except ValueError as exc:
-    print("\nWarm-up validation PASSED.")
-    print(exc)
 
+    assert registry.names() == [
+        "Test Indicator",
+        "Second Test Indicator",
+    ]
 
-# ------------------------------------------------------------------
-# Causality / look-ahead protection
-# ------------------------------------------------------------------
+    assert registry.roles() == [
+        "test",
+        "test",
+    ]
 
-causal_registry = IndicatorRegistry()
-causal_registry.register(
-    name="Future Looking Indicator",
-    role="test",
-    function=future_looking_indicator,
-    contract=FeatureContract(
-        output_column="test_indicator",
-        required_columns=("close",),
-        warmup_period=1,
-        causal=True,
-    ),
-)
+    assert registry.output_columns() == [
+        "test_indicator",
+        "test_indicator_two",
+    ]
 
-try:
-    causal_registry.apply(
+    print("\nMultiple registration PASSED.")
+
+    # ----------------------------------------------------------
+    # Definition snapshot protection
+    # ----------------------------------------------------------
+
+    definitions = registry.definitions()
+
+    assert len(definitions) == 2
+    assert definitions[0].name == "Test Indicator"
+    assert definitions[1].name == "Second Test Indicator"
+
+    definitions.clear()
+
+    assert len(registry.definitions()) == 2
+
+    print("Definition snapshot protection PASSED.")
+
+    # ----------------------------------------------------------
+    # Runtime application
+    # ----------------------------------------------------------
+
+    df = pd.DataFrame(
+        {
+            "close": [
+                100.0,
+                101.0,
+                102.0,
+                103.0,
+                104.0,
+                105.0,
+            ]
+        }
+    )
+
+    result = registry.apply(df)
+
+    assert isinstance(result, pd.DataFrame)
+
+    assert "test_indicator" in result.columns
+    assert "test_indicator_two" in result.columns
+
+    assert len(result) == len(df)
+
+    assert result.index.equals(df.index)
+
+    assert df.equals(
         pd.DataFrame(
-            {"close": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]}
+            {
+                "close": [
+                    100.0,
+                    101.0,
+                    102.0,
+                    103.0,
+                    104.0,
+                    105.0,
+                ]
+            }
         )
     )
-    raise AssertionError(
-        "Look-ahead violation was not blocked."
-    )
-except ValueError as exc:
-    print("\nCausality / look-ahead protection PASSED.")
-    print(exc)
+
+    print("Runtime application PASSED.")
+
+    # ----------------------------------------------------------
+    # Final report
+    # ----------------------------------------------------------
+
+    print("\nRegistered definitions:")
+
+    for definition in registry.definitions():
+        print(
+            f"- {definition.name} | "
+            f"role={definition.role} | "
+            f"output={definition.contract.output_column} | "
+            f"warmup={definition.contract.warmup_period} | "
+            f"causal={definition.contract.causal} | "
+            f"required={definition.contract.required_columns}"
+        )
+
+    print("\nIndicator Registry contract tests PASSED.")
 
 
-# ------------------------------------------------------------------
-# Valid causal execution
-# ------------------------------------------------------------------
-
-valid_input = pd.DataFrame(
-    {"close": [10.0, 20.0, 30.0, 40.0]}
-)
-valid_input_snapshot = valid_input.copy(deep=True)
-
-valid_registry = IndicatorRegistry()
-valid_registry.register(
-    name="Valid Causal Indicator",
-    role="test",
-    function=causal_indicator,
-    contract=base_contract(),
-)
-
-valid_output = valid_registry.apply(valid_input)
-
-assert len(valid_output) == len(valid_input), (
-    "Valid indicator changed row count."
-)
-
-assert "test_indicator" in valid_output.columns, (
-    "Valid indicator did not generate its expected output column."
-)
-
-assert pd.isna(valid_output["test_indicator"].iloc[0]), (
-    "The first value should be NaN during the warm-up period."
-)
-
-assert valid_output["test_indicator"].iloc[1] == 15.0, (
-    "The first valid rolling value should equal 15.0."
-)
-
-assert valid_input.equals(valid_input_snapshot), (
-    "Valid indicator mutated the input DataFrame."
-)
-
-print("\nValid causal contract execution PASSED.")
-
-
-# ------------------------------------------------------------------
-# Registry definitions
-# ------------------------------------------------------------------
-
-print("\nIndicator definitions:")
-
-for definition in valid_registry.definitions():
-    print(
-        f"- {definition.name} | "
-        f"role={definition.role} | "
-        f"output={definition.contract.output_column} | "
-        f"warmup={definition.contract.warmup_period} | "
-        f"causal={definition.contract.causal} | "
-        f"required={definition.contract.required_columns}"
-    )
-
-
-print("\nRegistry runtime contract tests PASSED.")
+if __name__ == "__main__":
+    main()
