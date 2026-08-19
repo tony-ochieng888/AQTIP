@@ -76,6 +76,7 @@ class IndicatorFactory:
                 output_column=f"atr_{period}",
                 required_columns=("high", "low", "close"),
                 warmup_period=period,
+                causal=True,
             )
 
             return IndicatorDefinition(
@@ -93,6 +94,7 @@ class IndicatorFactory:
                 output_column=f"kijun_{period}",
                 required_columns=("high", "low"),
                 warmup_period=period,
+                causal=True,
             )
 
             return IndicatorDefinition(
