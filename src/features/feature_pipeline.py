@@ -1,5 +1,8 @@
 import pandas as pd
 
+from src.features.feature_pipeline_integrity import (
+    FeaturePipelineIntegrity,
+)
 from src.features.feature_runtime import FeatureRuntime
 from src.features.indicator_config import IndicatorConfig
 from src.features.indicator_factory import IndicatorFactory
@@ -14,12 +17,19 @@ class FeaturePipeline:
 
     Architectural responsibility:
 
-    1. Generate configured base transforms.
-    2. Resolve configured indicators through IndicatorFactory.
-    3. Register indicator definitions with IndicatorRegistry.
-    4. Execute every feature through FeatureRuntime.
+    1. Capture the original input schema.
+    2. Generate configured base transforms.
+    3. Resolve configured indicators through IndicatorFactory.
+    4. Register indicator definitions with IndicatorRegistry.
+    5. Execute every feature through FeatureRuntime.
+    6. Validate complete pipeline-level integrity.
 
-    The pipeline does not implement feature-specific contract logic.
+    The pipeline remains the orchestration layer.
+
+    FeatureRuntime owns individual feature contract enforcement.
+
+    FeaturePipelineIntegrity owns complete pipeline integrity
+    enforcement.
     """
 
     def __init__(self) -> None:
@@ -43,7 +53,9 @@ class FeaturePipeline:
         self._register_indicators()
 
     def _register_indicators(self) -> None:
-        """Create and register every enabled indicator."""
+        """
+        Create and register every enabled indicator.
+        """
 
         for config in self.indicator_configs:
             if not config.enabled:
@@ -61,16 +73,30 @@ class FeaturePipeline:
                 contract=definition.contract,
             )
 
-    def run(self, df: pd.DataFrame) -> pd.DataFrame:
+    def run(
+        self,
+        df: pd.DataFrame,
+    ) -> pd.DataFrame:
         """
         Execute the complete AQTIP feature pipeline.
 
-        Base transforms execute first.
+        Pipeline execution order:
 
-        Registered indicators execute afterwards.
+        1. Capture original input schema.
+        2. Capture original input values.
+        3. Determine expected feature-output declarations.
+        4. Execute base feature transforms through FeatureRuntime.
+        5. Execute registered indicators through FeatureRuntime.
+        6. Validate complete pipeline-level integrity.
+        7. Return the feature-enriched DataFrame.
 
-        Every feature-producing operation passes through the same
-        FeatureRuntime contract-enforcement boundary.
+        FeaturePipeline remains an orchestration layer.
+
+        FeatureRuntime is responsible for individual feature
+        execution contracts.
+
+        FeaturePipelineIntegrity is responsible for complete
+        pipeline integrity.
         """
 
         if not isinstance(df, pd.DataFrame):
@@ -81,6 +107,38 @@ class FeaturePipeline:
         logger.info(
             "Starting feature engineering pipeline..."
         )
+
+        # ----------------------------------------------------------
+        # Capture original pipeline input
+        # ----------------------------------------------------------
+
+        original_input = df.copy(deep=True)
+
+        input_schema = (
+            FeaturePipelineIntegrity.capture_input(df)
+        )
+
+        # ----------------------------------------------------------
+        # Determine expected feature outputs
+        # ----------------------------------------------------------
+
+        transform_outputs = tuple(
+            transform.contract.output_column
+            for transform in FeatureTransforms.definitions()
+        )
+
+        indicator_outputs = tuple(
+            self.registry.output_columns()
+        )
+
+        expected_outputs = (
+            transform_outputs
+            + indicator_outputs
+        )
+
+        # ----------------------------------------------------------
+        # Execute features
+        # ----------------------------------------------------------
 
         result = df.copy(deep=True)
 
@@ -112,6 +170,29 @@ class FeaturePipeline:
         )
 
         result = self.registry.apply(result)
+
+        # ----------------------------------------------------------
+        # Pipeline-level integrity validation
+        # ----------------------------------------------------------
+
+        logger.info(
+            "Validating complete feature pipeline integrity..."
+        )
+
+        FeaturePipelineIntegrity.validate_feature_outputs(
+            input_schema=input_schema,
+            output_df=result,
+            expected_outputs=expected_outputs,
+        )
+
+        FeaturePipelineIntegrity.validate_input_integrity(
+            original_df=original_input,
+            output_df=result,
+        )
+
+        logger.info(
+            "Feature pipeline integrity validation PASSED."
+        )
 
         logger.info(
             "Feature pipeline completed."
