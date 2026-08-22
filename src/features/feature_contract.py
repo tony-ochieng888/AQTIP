@@ -37,7 +37,7 @@ class FeatureContract:
         Validate the contract immediately after construction.
 
         This prevents malformed contracts from entering the
-        IndicatorFactory, IndicatorRegistry, or FeaturePipeline.
+        IndicatorFactory, FeatureRegistry, or FeaturePipeline.
         """
 
         if not isinstance(self.output_column, str):

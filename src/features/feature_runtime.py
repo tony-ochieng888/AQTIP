@@ -28,7 +28,7 @@ class FeatureRuntime:
     FeatureRuntime
         Verifies that the promise was actually kept.
 
-    FeatureRegistry / IndicatorRegistry
+    FeatureRegistry
         Owns registration and discovery.
 
     FeaturePipeline

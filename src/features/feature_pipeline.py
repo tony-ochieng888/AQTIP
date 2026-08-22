@@ -6,7 +6,7 @@ from src.features.feature_pipeline_integrity import (
 from src.features.feature_runtime import FeatureRuntime
 from src.features.indicator_config import IndicatorConfig
 from src.features.indicator_factory import IndicatorFactory
-from src.features.registry import IndicatorRegistry
+from src.features.feature_registry import FeatureRegistry
 from src.features.transforms import FeatureTransforms
 from src.utils.logger import logger
 
@@ -20,7 +20,7 @@ class FeaturePipeline:
     1. Capture the original input schema.
     2. Generate configured base transforms.
     3. Resolve configured indicators through IndicatorFactory.
-    4. Register indicator definitions with IndicatorRegistry.
+    4. Register feature definitions with FeatureRegistry.
     5. Execute every feature through FeatureRuntime.
     6. Validate complete pipeline-level integrity.
 
@@ -33,7 +33,7 @@ class FeaturePipeline:
     """
 
     def __init__(self) -> None:
-        self.registry = IndicatorRegistry()
+        self.registry = FeatureRegistry()
 
         self.indicator_configs = [
             IndicatorConfig(
@@ -161,11 +161,11 @@ class FeaturePipeline:
             )
 
         # ----------------------------------------------------------
-        # Registered indicators
+        # Registered features
         # ----------------------------------------------------------
 
         logger.info(
-            "Executing registered indicators through runtime "
+            "Executing registered features through runtime "
             "contracts..."
         )
 
