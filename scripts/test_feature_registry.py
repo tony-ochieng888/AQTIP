@@ -5,10 +5,10 @@ from src.features.feature_definition import FeatureDefinition
 from src.features.feature_registry import FeatureRegistry
 
 
-def test_feature(df: pd.DataFrame) -> pd.DataFrame:
+def feature_function(df: pd.DataFrame) -> pd.DataFrame:
     result = df.copy(deep=True)
 
-    result["test_feature"] = result["close"].rolling(
+    result["feature_function"] = result["close"].rolling(
         window=2,
         min_periods=2,
     ).mean()
@@ -16,10 +16,10 @@ def test_feature(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def test_feature_two(df: pd.DataFrame) -> pd.DataFrame:
+def second_feature_function(df: pd.DataFrame) -> pd.DataFrame:
     result = df.copy(deep=True)
 
-    result["test_feature_two"] = result["close"].rolling(
+    result["second_feature_function"] = result["close"].rolling(
         window=2,
         min_periods=2,
     ).mean()
@@ -50,7 +50,7 @@ def main() -> None:
     )
 
     contract = FeatureContract(
-        output_column="test_feature",
+        output_column="feature_function",
         required_columns=("close",),
         warmup_period=2,
         causal=True,
@@ -63,13 +63,13 @@ def main() -> None:
     definition = FeatureDefinition(
         name="Test Feature",
         role="test",
-        function=test_feature,
+        function=feature_function,
         contract=contract,
     )
 
     assert definition.name == "Test Feature"
     assert definition.role == "test"
-    assert definition.function is test_feature
+    assert definition.function is feature_function
     assert definition.contract == contract
 
     print("\nFeatureDefinition validation PASSED.")
@@ -82,7 +82,7 @@ def main() -> None:
         FeatureDefinition(
             name="",
             role="test",
-            function=test_feature,
+            function=feature_function,
             contract=contract,
         )
 
@@ -104,7 +104,7 @@ def main() -> None:
     registry.register(
         name="Test Feature",
         role="test",
-        function=test_feature,
+        function=feature_function,
         contract=contract,
     )
 
@@ -122,7 +122,7 @@ def main() -> None:
     print("\nRegistered roles:")
     print(registry.roles())
 
-    assert registry.output_columns() == ["test_feature"]
+    assert registry.output_columns() == ["feature_function"]
 
     print("\nRegistered output columns:")
     print(registry.output_columns())
@@ -135,9 +135,9 @@ def main() -> None:
         registry.register(
             name="Test Feature",
             role="test",
-            function=test_feature_two,
+            function=second_feature_function,
             contract=FeatureContract(
-                output_column="test_feature_two",
+                output_column="second_feature_function",
                 required_columns=("close",),
                 warmup_period=2,
                 causal=True,
@@ -189,7 +189,7 @@ def main() -> None:
         registry.register(
             name="Invalid Contract Feature",
             role="test",
-            function=test_feature_two,
+            function=second_feature_function,
             contract="not a FeatureContract",  # type: ignore[arg-type]
         )
 
@@ -211,9 +211,9 @@ def main() -> None:
         registry.register(
             name="Duplicate Output Feature",
             role="test",
-            function=test_feature_two,
+            function=second_feature_function,
             contract=FeatureContract(
-                output_column="test_feature",
+                output_column="feature_function",
                 required_columns=("close",),
                 warmup_period=2,
                 causal=True,
@@ -235,7 +235,7 @@ def main() -> None:
     # ----------------------------------------------------------
 
     second_contract = FeatureContract(
-        output_column="test_feature_two",
+        output_column="second_feature_function",
         required_columns=("close",),
         warmup_period=2,
         causal=True,
@@ -244,7 +244,7 @@ def main() -> None:
     registry.register(
         name="Second Test Feature",
         role="test",
-        function=test_feature_two,
+        function=second_feature_function,
         contract=second_contract,
     )
 
@@ -259,8 +259,8 @@ def main() -> None:
     ]
 
     assert registry.output_columns() == [
-        "test_feature",
-        "test_feature_two",
+        "feature_function",
+        "second_feature_function",
     ]
 
     print("\nMultiple registration PASSED.")
@@ -291,8 +291,8 @@ def main() -> None:
 
     assert isinstance(result, pd.DataFrame)
 
-    assert "test_feature" in result.columns
-    assert "test_feature_two" in result.columns
+    assert "feature_function" in result.columns
+    assert "second_feature_function" in result.columns
 
     assert len(result) == len(df)
 
